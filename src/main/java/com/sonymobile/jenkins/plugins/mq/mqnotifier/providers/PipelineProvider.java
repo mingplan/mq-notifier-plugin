@@ -16,7 +16,7 @@ import java.util.List;
  *  Provides information about pipeline when this build is pipeline type
  *  @author hmzhu@freewheel.tv
  */
-@Extension
+@Extension(optional = true)
 public class PipelineProvider extends MQDataProvider {
 
     public static final String Key_Pipeline = "pipelines";
