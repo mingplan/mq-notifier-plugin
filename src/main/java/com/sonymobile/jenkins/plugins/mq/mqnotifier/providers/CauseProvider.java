@@ -59,38 +59,32 @@ public class CauseProvider extends MQDataProvider {
                         if (cause instanceof Cause.UpstreamCause) {
                             Cause.UpstreamCause upstreamCause = (Cause.UpstreamCause)cause;
                             causes.add(upstreamCause.getShortDescription());
-                            System.out.println(upstreamCause.getShortDescription());
                             TopLevelItem item = Jenkins.get().getItem(upstreamCause.getUpstreamProject());
                             if (item != null && item instanceof MatrixProject) {
                                 //Find the build
                                 MatrixBuild mb = ((MatrixProject)item).getBuildByNumber(upstreamCause.getUpstreamBuild());
                                 causes.add(mb.getUrl());
-                                System.out.println(mb.getUrl());
                             }
                         }
 
                         if (cause instanceof Cause.UserIdCause) {
                             Cause.UserIdCause useridCause = (Cause.UserIdCause)cause;
                             causes.add(useridCause.getShortDescription());
-                            System.out.println(useridCause.getShortDescription());
                         }
 
                         if (cause instanceof Cause.RemoteCause) {
                             Cause.RemoteCause remoteCause = (Cause.RemoteCause)cause;
                             causes.add(remoteCause.getShortDescription());
-                            System.out.println(remoteCause.getShortDescription());
                         }
 
                         if (cause instanceof TimerTrigger.TimerTriggerCause) {
                             TimerTrigger.TimerTriggerCause timerTriggerCause = (TimerTrigger.TimerTriggerCause)cause;
                             causes.add(timerTriggerCause.getShortDescription());
-                            System.out.println(timerTriggerCause.getShortDescription());
                         }
 
                         if (cause instanceof SCMTrigger.SCMTriggerCause) {
                             SCMTrigger.SCMTriggerCause scmTriggerCause = (SCMTrigger.SCMTriggerCause)cause;
                             causes.add(scmTriggerCause.getShortDescription());
-                            System.out.println(scmTriggerCause.getShortDescription());
                         }
                     }
                 }
