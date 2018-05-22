@@ -79,6 +79,6 @@ public abstract class MQDataProvider implements ExtensionPoint {
      * @return all the MQDataProviders.
      */
     public static List<MQDataProvider> all() {
-        return Jenkins.getInstance().getExtensionList(MQDataProvider.class);
+        return Jenkins.get().getExtensionList(MQDataProvider.class);
     }
 }

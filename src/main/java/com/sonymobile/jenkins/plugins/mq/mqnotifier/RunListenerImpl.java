@@ -54,6 +54,7 @@ public class RunListenerImpl extends RunListener<Run> {
         super(Run.class);
     }
 
+    /* Don't need to send message at the build started.
     @Override
     public void onStarted(Run r, TaskListener listener) {
         JSONObject json = new JSONObject();
@@ -66,8 +67,9 @@ public class RunListenerImpl extends RunListener<Run> {
         for (MQDataProvider mqDataProvider : MQDataProvider.all()) {
             mqDataProvider.provideStartRunData(r, json);
         }
+        System.out.println(json.toString());
         publish(json);
-    }
+    }*/
 
     @Override
     public void onCompleted(Run r, TaskListener listener) {
@@ -84,6 +86,20 @@ public class RunListenerImpl extends RunListener<Run> {
             status = res.toString();
         }
         json.put(Util.KEY_STATUS, status);
+        Run last = r.getPreviousBuiltBuild();
+        if (last != null) {
+            json.put(Util.KEY_LAST_BUILT_NR, last.getNumber());
+        }
+        // scheduled time
+        Calendar scheduled_time = r.getTimestamp();
+        if (scheduled_time != null) {
+            json.put(Util.KEY_SCHEDULED_TIME, scheduled_time.getTimeInMillis());
+        }
+        // start time of a build
+        Long start_time = r.getTimeInMillis();
+        if (start_time != null) {
+            json.put(Util.KEY_START_TIME, start_time);
+        }
         for (MQDataProvider mqDataProvider : MQDataProvider.all()) {
             mqDataProvider.provideCompletedRunData(r, json);
         }

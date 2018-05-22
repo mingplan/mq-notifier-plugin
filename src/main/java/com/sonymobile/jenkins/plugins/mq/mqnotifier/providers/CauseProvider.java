@@ -26,10 +26,9 @@ package com.sonymobile.jenkins.plugins.mq.mqnotifier.providers;
 import hudson.Extension;
 import hudson.matrix.MatrixBuild;
 import hudson.matrix.MatrixProject;
-import hudson.model.Cause;
-import hudson.model.CauseAction;
-import hudson.model.Run;
-import hudson.model.TopLevelItem;
+import hudson.model.*;
+import hudson.triggers.SCMTrigger;
+import hudson.triggers.TimerTrigger;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 
@@ -48,36 +47,56 @@ public class CauseProvider extends MQDataProvider {
     public static final String KEY_CAUSES = "causes";
 
     @Override
-    public void provideStartRunData(Run run, JSONObject json) {
+    public void provideCompletedRunData(Run run, JSONObject json) {
 
         List<String> causes = new LinkedList<String>();
-        for (Object o : run.getCauses()) {
-            causes.add(o.getClass().getSimpleName());
-        }
 
-        CauseAction causeAction = run.getAction(CauseAction.class);
-        if (causeAction != null) {
-            for (Cause cause : causeAction.getCauses()) {
-                if (cause instanceof Cause.UpstreamCause) {
-                    Cause.UpstreamCause upstreamCause = (Cause.UpstreamCause)cause;
-                    causes.add(upstreamCause.getShortDescription());
-                    TopLevelItem item = Jenkins.getInstance().getItem(upstreamCause.getUpstreamProject());
-                    if (item != null && item instanceof MatrixProject) {
-                        //Find the build
-                        MatrixBuild mb = ((MatrixProject)item).getBuildByNumber(upstreamCause.getUpstreamBuild());
-                        causes.add(mb.getUrl());
+        for(Action action: run.getAllActions()) {
+            if (action instanceof CauseAction) {
+                CauseAction causeAction = (CauseAction)action;
+                if (causeAction != null) {
+                    for (Cause cause : causeAction.getCauses()) {
+                        if (cause instanceof Cause.UpstreamCause) {
+                            Cause.UpstreamCause upstreamCause = (Cause.UpstreamCause)cause;
+                            causes.add(upstreamCause.getShortDescription());
+                            System.out.println(upstreamCause.getShortDescription());
+                            TopLevelItem item = Jenkins.get().getItem(upstreamCause.getUpstreamProject());
+                            if (item != null && item instanceof MatrixProject) {
+                                //Find the build
+                                MatrixBuild mb = ((MatrixProject)item).getBuildByNumber(upstreamCause.getUpstreamBuild());
+                                causes.add(mb.getUrl());
+                                System.out.println(mb.getUrl());
+                            }
+                        }
+
+                        if (cause instanceof Cause.UserIdCause) {
+                            Cause.UserIdCause useridCause = (Cause.UserIdCause)cause;
+                            causes.add(useridCause.getShortDescription());
+                            System.out.println(useridCause.getShortDescription());
+                        }
+
+                        if (cause instanceof Cause.RemoteCause) {
+                            Cause.RemoteCause remoteCause = (Cause.RemoteCause)cause;
+                            causes.add(remoteCause.getShortDescription());
+                            System.out.println(remoteCause.getShortDescription());
+                        }
+
+                        if (cause instanceof TimerTrigger.TimerTriggerCause) {
+                            TimerTrigger.TimerTriggerCause timerTriggerCause = (TimerTrigger.TimerTriggerCause)cause;
+                            causes.add(timerTriggerCause.getShortDescription());
+                            System.out.println(timerTriggerCause.getShortDescription());
+                        }
+
+                        if (cause instanceof SCMTrigger.SCMTriggerCause) {
+                            SCMTrigger.SCMTriggerCause scmTriggerCause = (SCMTrigger.SCMTriggerCause)cause;
+                            causes.add(scmTriggerCause.getShortDescription());
+                            System.out.println(scmTriggerCause.getShortDescription());
+                        }
                     }
                 }
+
             }
         }
-        Cause.RemoteCause remoteCause = (Cause.RemoteCause)run.getCause(Cause.RemoteCause.class);
-        if (remoteCause != null) {
-            causes.add(remoteCause.getShortDescription());
-        }
-        Cause.UserIdCause userIdCause = (Cause.UserIdCause)run.getCause(Cause.UserIdCause.class);
-        if (userIdCause != null) {
-            causes.add(userIdCause.getShortDescription());
-        }
-        json.put(KEY_CAUSES, causes.toString());
+        json.put(KEY_CAUSES, causes);
     }
 }

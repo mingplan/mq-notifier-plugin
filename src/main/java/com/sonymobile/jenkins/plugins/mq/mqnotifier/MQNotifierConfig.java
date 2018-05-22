@@ -214,7 +214,7 @@ public final class MQNotifierConfig extends Plugin implements Describable<MQNoti
      * @return the instance of this extension.
      */
     public static MQNotifierConfig getInstance() {
-        Jenkins jenkins = Jenkins.getInstance();
+        Jenkins jenkins = Jenkins.get();
         if (jenkins != null) {
             return jenkins.getPlugin(MQNotifierConfig.class);
         } else {
@@ -321,7 +321,7 @@ public final class MQNotifierConfig extends Plugin implements Describable<MQNoti
      */
     @Override
     public Descriptor<MQNotifierConfig> getDescriptor() {
-        return Jenkins.getInstance().getDescriptorOrDie(getClass());
+        return Jenkins.get().getDescriptorOrDie(getClass());
     }
 
     /**

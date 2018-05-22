@@ -79,6 +79,12 @@ public final class Util {
     public static final String VALUE_DELETED = "DELETED";
     /**Content Type. */
     public static final String CONTENT_TYPE = "application/json";
+    /** last built build number. */
+    public static final String KEY_LAST_BUILT_NR = "last_built";
+    /** scheduled time of a build. */
+    public static final String KEY_SCHEDULED_TIME = "scheduled_time";
+    /** start time of a build. */
+    public static final String KEY_START_TIME = "start_time";
 
     /**
      * Utility classes should not have a public or default constructor.
@@ -94,7 +100,7 @@ public final class Util {
      *
      */
     public static String getJobUrl(Queue.Item item) {
-        Jenkins jenkins = Jenkins.getInstance();
+        Jenkins jenkins = Jenkins.get();
         if (jenkins != null && jenkins.getRootUrl() != null) {
             return Functions.joinPath(jenkins.getRootUrl(), item.task.getUrl());
         } else {
@@ -110,7 +116,7 @@ public final class Util {
      *
      */
     public static String getJobUrl(Run r) {
-        Jenkins jenkins = Jenkins.getInstance();
+        Jenkins jenkins = Jenkins.get();
         if (jenkins != null && jenkins.getRootUrl() != null) {
             return Functions.joinPath(jenkins.getRootUrl(), r.getUrl());
         } else {

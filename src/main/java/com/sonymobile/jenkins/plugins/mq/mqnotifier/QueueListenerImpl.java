@@ -39,7 +39,7 @@ import java.util.Calendar;
  * messages on configured MQ server.
  * @author Tomas Westling &lt;tomas.westling@sonymobile.com&gt;
  */
-@Extension
+//@Extension
 public class QueueListenerImpl extends QueueListener {
     private static MQNotifierConfig config;
 
