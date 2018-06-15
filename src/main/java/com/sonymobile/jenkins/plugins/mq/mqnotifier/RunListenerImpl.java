@@ -105,7 +105,8 @@ public class RunListenerImpl extends RunListener<Run> {
         }
         publish(json);
     }
-
+    
+    /* Don't need this message
     @Override
     public void onDeleted(Run r) {
         if (r instanceof AbstractBuild) {
@@ -121,7 +122,8 @@ public class RunListenerImpl extends RunListener<Run> {
             publish(json);
         }
     }
-
+    */
+    
     /**
      * Publish json message on configured MQ server.
      *
