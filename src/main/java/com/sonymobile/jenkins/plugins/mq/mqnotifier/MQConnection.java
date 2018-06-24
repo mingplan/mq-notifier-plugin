@@ -30,17 +30,19 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.ShutdownListener;
 import com.rabbitmq.client.ShutdownSignalException;
+import com.squareup.tape.QueueFile;
 import hudson.util.Secret;
+import jenkins.model.Jenkins;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.Calendar;
 
 /**
  * Creates an MQ connection.
@@ -50,8 +52,6 @@ import java.util.concurrent.TimeUnit;
 public final class MQConnection implements ShutdownListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(MQConnection.class);
     private static final int HEARTBEAT_INTERVAL = 30;
-    private static final int MESSAGE_QUEUE_SIZE = 1000;
-    private static final int SENDMESSAGE_TIMEOUT = 100;
     private static final int CONNECTION_WAIT = 10000;
 
     private String userName;
@@ -61,9 +61,11 @@ public final class MQConnection implements ShutdownListener {
     private Connection connection = null;
     private Channel channel = null;
 
-    private static LinkedBlockingQueue messageQueue;
     private static Thread messageQueueThread;
 
+    private static QueueFile queueFile;
+
+    private static MQNotifierConfig config;
     /**
      * Lazy-loaded singleton using the initialization-on-demand holder pattern.
      */
@@ -156,8 +158,17 @@ public final class MQConnection implements ShutdownListener {
      * @param body the message body
      */
     public void addMessageToQueue(String exchange, String routingKey, AMQP.BasicProperties props, byte[] body) {
-        if (messageQueue == null) {
-            messageQueue = new LinkedBlockingQueue(MESSAGE_QUEUE_SIZE);
+        if (queueFile == null) {
+            Jenkins jenkins = Jenkins.get();
+            String filePath = new String(jenkins.getRootDir().toString() + "/build.db");
+
+            File file = new File(filePath);
+
+            try {
+                queueFile = new QueueFile(file);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         if (messageQueueThread == null || !messageQueueThread.isAlive()) {
@@ -171,9 +182,20 @@ public final class MQConnection implements ShutdownListener {
             LOGGER.info("messageQueueThread recreated since it was null or not alive.");
         }
 
-        MessageData messageData = new MessageData(exchange, routingKey, props, body);
-        if (!messageQueue.offer(messageData)) {
-            LOGGER.error("addMessageToQueue() failed, RabbitMQ queue is full!");
+        int count = 0;
+        while (true) {
+            try {
+                queueFile.add(body);
+                break;
+            } catch (IOException e) {
+                LOGGER.error("add message to queue error");
+                LOGGER.error(e.getMessage());
+                count += 1;
+            }
+            if (count == 5) {
+                LOGGER.error("fail to add item to queue after 5 times to try");
+                break;
+            }
         }
     }
 
@@ -181,16 +203,36 @@ public final class MQConnection implements ShutdownListener {
      * Sends messages from the message queue.
      */
     private void sendMessages() {
+        if (config == null) {
+            config = MQNotifierConfig.getInstance();
+        }
+        AMQP.BasicProperties.Builder bob = null;
+        if (config != null && config.isNotifierEnabled()) {
+            bob = new AMQP.BasicProperties.Builder();
+            int dm = 1;
+            if (config.getPersistentDelivery()) {
+                dm = 2;
+            }
+            bob.appId(config.getAppId());
+            bob.deliveryMode(dm);
+            bob.contentType(Util.CONTENT_TYPE);
+            bob.timestamp(Calendar.getInstance().getTime());
+        }
         while (true) {
             try {
-                MessageData messageData = (MessageData)messageQueue.poll(SENDMESSAGE_TIMEOUT,
-                                                                         TimeUnit.MILLISECONDS);
-                if (messageData != null) {
-                    getInstance().send(messageData.getExchange(), messageData.getRoutingKey(),
-                            messageData.getProps(), messageData.getBody());
+                byte[] data = queueFile.peek();
+                boolean is_ok = false;
+                if (data != null) {
+                    LOGGER.info("send message");
+                    is_ok =getInstance().send(config.getExchangeName(), config.getRoutingKey(),
+                            bob.build() , data);
                 }
-            } catch (InterruptedException ie) {
-                LOGGER.info("sendMessages() poll() was interrupted: ", ie);
+                if (is_ok) {
+                    LOGGER.info("remove message");
+                    queueFile.remove();
+                }
+            } catch (IOException ie) {
+                LOGGER.info("get message from account an error: ", ie);
             }
         }
     }
@@ -271,10 +313,10 @@ public final class MQConnection implements ShutdownListener {
      * @param props other properties for the message - routing headers etc
      * @param body the message body
      */
-    private void send(String exchange, String routingKey, AMQP.BasicProperties props, byte[] body) {
+    private boolean send(String exchange, String routingKey, AMQP.BasicProperties props, byte[] body) {
         if (exchange == null) {
             LOGGER.error("Invalid configuration, exchange must not be null.");
-            return;
+            return false;
         }
 
         while (true) {
@@ -294,18 +336,19 @@ public final class MQConnection implements ShutdownListener {
             } catch (ShutdownSignalException e) {
                 LOGGER.error("Cannot create channel", e);
                 channel = null; // reset
-                break;
+                return false;
             }
             if (channel != null) {
                 try {
                     channel.basicPublish(exchange, routingKey, props, body);
                 } catch (IOException e) {
                     LOGGER.error("Cannot publish message", e);
+                    return false;
                 } catch (AlreadyClosedException e) {
                     LOGGER.error("Connection is already closed", e);
+                    return false;
                 }
-
-                break;
+                return true;
             } else {
                 try {
                     Thread.sleep(CONNECTION_WAIT);
